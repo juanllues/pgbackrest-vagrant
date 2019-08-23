@@ -27,7 +27,7 @@ The cluster is configured with a single primary and one asynchronous replica.
 # Dependencies
 1. [Virtualbox](https://www.virtualbox.org/wiki/Downloads)
 2. [Vagrant](http://www.vagrantup.com/downloads.html)
-3. `git clone https://github.com/vtomasr5/our-postgresql-setup.git`
+3. `git clone https://github.com/juanllues/pgbackrest-vagrant.git`
 
 # Getting started
 
