@@ -1,7 +1,7 @@
 #!/bin/bash
 
-PG01="172.28.33.11"
-PG02="172.28.33.12"
+PG03="172.28.33.13"
+PG04="172.28.33.14"
 
 POSTGRESQL_VERSION=9.6
 PGBOUNCER_VERSION=1.9.0-2.pgdg16.04+1
@@ -67,7 +67,7 @@ function setup_fresh_postgresql() {
     systemctl start postgresql
     systemctl stop postgresql
 
-    rsync -avz -e 'ssh -oStrictHostKeyChecking=no' /var/lib/postgresql/${POSTGRESQL_VERSION}/main/ $PG02:/var/lib/postgresql/${POSTGRESQL_VERSION}/main
+    rsync -avz -e 'ssh -oStrictHostKeyChecking=no' /var/lib/postgresql/${POSTGRESQL_VERSION}/main/ $PG04:/var/lib/postgresql/${POSTGRESQL_VERSION}/main
 }
 
 function setup_postgresql_repo() {
@@ -105,29 +105,25 @@ host    all             all             ::1/128                 md5
 #local   replication     postgres                                peer
 #host    replication     postgres        127.0.0.1/32            md5
 host    replication     postgres        ::1/128                 md5
-hostssl    replication     postgres 172.28.33.11/32                 trust
-hostssl    replication     postgres 172.28.33.12/32                 trust
 hostssl    replication     postgres 172.28.33.13/32                 trust
-hostssl    replication	   postgres 172.28.33.14/32		    trust
+hostssl    replication     postgres 172.28.33.14/32                 trust
+
+
 # for user connections
 host       all     postgres 172.28.33.1/32                 trust
 hostssl    all     postgres 172.28.33.1/32                 trust
 # for pgbouncer
-host       all     postgres 172.28.33.10/32                 trust
-hostssl    all     postgres 172.28.33.10/32                 trust
-host       all     postgres 172.28.33.11/32                 trust
-hostssl    all     postgres 172.28.33.11/32                 trust
-host       all     postgres 172.28.33.12/32                 trust
-hostssl    all     postgres 172.28.33.12/32                 trust
+host       all     postgres 172.28.33.18/32                 trust
+hostssl    all     postgres 172.28.33.18/32                 trust
 host       all     postgres 172.28.33.13/32                 trust
 hostssl    all     postgres 172.28.33.13/32                 trust
 host       all     postgres 172.28.33.14/32                 trust
 hostssl    all     postgres 172.28.33.14/32                 trust
 EOF
 
-if [ "$(hostname)" == "pg01" ]; then
+if [ "$(hostname)" == "pg03" ]; then
     cat > /etc/postgresql/${POSTGRESQL_VERSION}/main/postgresql.conf <<EOF
-archive_command = 'pgbackrest --stanza=main-pg01 archive-push %p'
+archive_command = 'pgbackrest --stanza=main-pg03 archive-push %p'
 archive_mode = 'on'
 autovacuum = 'on'
 checkpoint_completion_target = 0.6
@@ -173,7 +169,7 @@ work_mem = '128MB'
 EOF
 else
 cat > /etc/postgresql/${POSTGRESQL_VERSION}/main/postgresql.conf <<EOF
-archive_command = 'pgbackrest --stanza=main-pg02 archive-push %p'
+archive_command = 'pgbackrest --stanza=main-pg04 archive-push %p'
 archive_mode = 'on'
 autovacuum = 'on'
 checkpoint_completion_target = 0.6
@@ -227,7 +223,7 @@ function setup_cluster() {
     apt-get -y install corosync pacemaker
 
     # Setup corosync config
-    cp /vagrant/corosync/corosync.conf /etc/corosync/corosync.conf
+    cp /vagrant/corosync/corosync2.conf /etc/corosync/corosync.conf
     cp /vagrant/corosync/authkey /etc/corosync/authkey
 
     # Make sure corosync can start
@@ -267,9 +263,9 @@ function build_cluster() {
 property stonith-enabled=false
 property default-resource-stickiness=100
 primitive PgBouncerVIP ocf:heartbeat:IPaddr2 params ip=172.28.33.9 cidr_netmask=32 op monitor interval=5s meta resource-stickiness=200
-primitive PostgresqlVIP ocf:heartbeat:IPaddr2 params ip=172.28.33.10 cidr_netmask=32 op monitor interval=5s
+primitive PostgresqlVIP ocf:heartbeat:IPaddr2 params ip=172.28.33.18 cidr_netmask=32 op monitor interval=5s
 primitive Postgresql ocf:heartbeat:pgsql \
-    params pgctl="/usr/lib/postgresql/${POSTGRESQL_VERSION}/bin/pg_ctl" psql="/usr/bin/psql" pgdata="/var/lib/postgresql/${POSTGRESQL_VERSION}/main/" start_opt="-p 5432" rep_mode="sync" node_list="pg01 pg02" primary_conninfo_opt="keepalives_idle=60 keepalives_interval=5 keepalives_count=5" master_ip="172.28.33.10" repuser="postgres" tmpdir="/var/lib/postgresql/${POSTGRESQL_VERSION}/tmp" config="/etc/postgresql/${POSTGRESQL_VERSION}/main/postgresql.conf" logfile="/var/log/postgresql/postgresql-crm.log" restore_command="exit 0" \
+    params pgctl="/usr/lib/postgresql/${POSTGRESQL_VERSION}/bin/pg_ctl" psql="/usr/bin/psql" pgdata="/var/lib/postgresql/${POSTGRESQL_VERSION}/main/" start_opt="-p 5432" rep_mode="sync" node_list="pg03 pg04" primary_conninfo_opt="keepalives_idle=60 keepalives_interval=5 keepalives_count=5" master_ip="172.28.33.18" repuser="postgres" tmpdir="/var/lib/postgresql/${POSTGRESQL_VERSION}/tmp" config="/etc/postgresql/${POSTGRESQL_VERSION}/main/postgresql.conf" logfile="/var/log/postgresql/postgresql-crm.log" restore_command="exit 0" \
     op start timeout="120s" interval="0s" on-fail="restart" \
     op monitor timeout="120s" interval="2s" on-fail="restart" \
     op monitor timeout="120s" interval="1s" on-fail="restart" role="Master" \
@@ -289,9 +285,9 @@ EOF
 
 function setup_pgbackrest() {
 apt-get -y install pgbackrest
-if [ "$(hostname)" == "pg01" ]; then
+if [ "$(hostname)" == "pg03" ]; then
 	cat > /etc/pgbackrest.conf <<EOF
-[main-pg01]
+[main-pg03]
 pg1-path=/var/lib/postgresql/9.6/main
 
 [global]
@@ -309,7 +305,7 @@ EOF
 
 else
 	cat > /etc/pgbackrest.conf <<EOF
-[main-pg02]
+[main-pg04]
 pg1-path=/var/lib/postgresql/9.6/main
 
 [global]
@@ -349,7 +345,7 @@ if [ ! -f /etc/corosync/corosync.conf ]; then
 fi
 
 # we only build the cluster on one of the nodes
-if [ "$(hostname)" == "pg01" ]; then
+if [ "$(hostname)" == "pg03" ]; then
     # TODO: don't run this if we already have a cluster formed
     build_cluster
 fi

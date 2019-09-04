@@ -23,4 +23,19 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     pg02_config.vm.network :private_network, ip: "172.28.33.12"
     pg02_config.vm.provision :shell, :path => "postgresql-cluster-setup.sh"
   end
+  config.vm.define :pg03, primary: true do |pg03_config|
+    pg03_config.vm.hostname = 'pg03'
+    pg03_config.vm.network :private_network, ip: "172.28.33.13"
+    pg03_config.vm.provision :shell, :path => "postgresql-cluster-setup2.sh"
+  end
+  config.vm.define :pg04 do |pg04_config|
+    pg04_config.vm.hostname = 'pg04'
+    pg04_config.vm.network :private_network, ip: "172.28.33.14"
+    pg04_config.vm.provision :shell, :path => "postgresql-cluster-setup2.sh"
+  end
+  config.vm.define :pgbr do |pgbr_config|
+    pgbr_config.vm.hostname = 'pgbr'
+    pgbr_config.vm.network :private_network, ip: "172.28.33.15"
+    pgbr_config.vm.provision :shell, :path => "pgbackrest-cluster-setup.sh"
+  end
 end
