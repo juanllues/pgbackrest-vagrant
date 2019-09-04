@@ -17,49 +17,6 @@ function setup_ssh_keys() {
     chgrp -R root /root/.ssh
 }
 
-function setup_pgbouncer() {
-    # Install the version that comes with the official apt postgresql repository
-    apt-get -y install pgbouncer=${PGBOUNCER_VERSION}
-
-    cat > /etc/pgbouncer/pgbouncer.ini <<EOF
-[databases]
-postgres = host=172.28.33.10 pool_size=6
-template1 = host=172.28.33.10 pool_size=6
-bench = host=172.28.33.10
-
-[pgbouncer]
-logfile = /var/log/postgresql/pgbouncer.log
-pidfile = /var/run/postgresql/pgbouncer.pid
-listen_addr = *
-listen_port = 6432
-unix_socket_dir = /var/run/postgresql
-auth_type = trust
-auth_file = /etc/pgbouncer/userlist.txt
-admin_users = postgres
-stats_users =
-pool_mode = session
-server_reset_query = DISCARD ALL
-server_check_query = select 1
-server_check_delay = 10
-max_client_conn = 1000
-default_pool_size = 20
-min_pool_size = 15
-reserve_pool_size = 5
-log_connections = 1
-log_disconnections = 1
-log_pooler_errors = 1
-EOF
-
-    cat > /etc/pgbouncer/userlist.txt <<EOF
-"postgres" "whatever_we_trust"
-EOF
-
-    cat > /etc/default/pgbouncer <<EOF
-START=1
-EOF
-    systemctl restart pgbouncer
-}
-
 function setup_fresh_postgresql() {
     su -s /bin/bash -c "/usr/lib/postgresql/${POSTGRESQL_VERSION}/bin/initdb -D /var/lib/postgresql/${POSTGRESQL_VERSION}/main -E utf-8" postgres
 
@@ -338,10 +295,6 @@ fi
 
 if [ ! -f /etc/postgresql/${POSTGRESQL_VERSION}/main/postgresql.conf ]; then
     setup_postgresql
-fi
-
-if [ ! -f /etc/pgbouncer/pgbouncer.ini ]; then
-    setup_pgbouncer
 fi
 
 if [ ! -f /etc/corosync/corosync.conf ]; then
